@@ -162,8 +162,8 @@ DECLARE_INTERFACE_IID_(IApplicationViewCollection, IUnknown, "1841C6D7-4F9D-42C0
 	STDMETHOD(UnregisterForApplicationViewChanges)(THIS_ DWORD) PURE;
 };
 
-// In registry: Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{FF72FFDD-BE7E-43FC-9C03-AD81681E88E4}
-MIDL_INTERFACE("FF72FFDD-BE7E-43FC-9C03-AD81681E88E4")
+// In registry: Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{536D3495-B208-4CC9-AE26-DE8111275BF8}
+MIDL_INTERFACE("536d3495-b208-4cc9-ae26-de8111275bf8")
 IVirtualDesktop : public IUnknown
 {
 public:
@@ -173,6 +173,16 @@ public:
 
 	virtual HRESULT STDMETHODCALLTYPE GetID(
 		GUID *pGuid) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE Unknown1(
+		int *pUnknown1) = 0;
+	
+	virtual HRESULT STDMETHODCALLTYPE GetName(
+		HSTRING *pName) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE GetWallpaperPath(
+		HSTRING *pWallpaperPath) = 0;
+
 };
 
 enum AdjacentDesktop
@@ -182,12 +192,13 @@ enum AdjacentDesktop
 };
 
 
-// HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{F31574D6-B682-4CDC-BD56-1827860ABEC6}
-MIDL_INTERFACE("f31574d6-b682-4cdc-bd56-1827860abec6")
+// HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{B2F925B9-5A0F-4D2E-9F4D-2B1507593C10}
+MIDL_INTERFACE("b2f925b9-5a0f-4d2e-9f4d-2b1507593c10")
 IVirtualDesktopManagerInternal : public IUnknown
 {
 public:
 	virtual HRESULT STDMETHODCALLTYPE GetCount(
+		HWND hWndOrMon,
 		UINT *pCount) = 0;
 
 	virtual HRESULT STDMETHODCALLTYPE MoveViewToDesktop(
@@ -200,9 +211,15 @@ public:
 		int *pfCanViewMoveDesktops) = 0;
 
 	virtual HRESULT STDMETHODCALLTYPE GetCurrentDesktop(
+		HWND hWndOrMon,
 		IVirtualDesktop** desktop) = 0;
 
+	// Windows 11 insiders builds 
+	// 	virtual HRESULT STDMETHODCALLTYPE GetAllCurrentDesktops(
+	// 		IObjectArray **ppDesktops) = 0;
+
 	virtual HRESULT STDMETHODCALLTYPE GetDesktops(
+		HWND hWndOrMon,
 		IObjectArray **ppDesktops) = 0;
 
 	virtual HRESULT STDMETHODCALLTYPE GetAdjacentDesktop(
@@ -211,9 +228,11 @@ public:
 		IVirtualDesktop **ppAdjacentDesktop) = 0;
 
 	virtual HRESULT STDMETHODCALLTYPE SwitchDesktop(
+		HWND hWndOrMon,
 		IVirtualDesktop *pDesktop) = 0;
 
 	virtual HRESULT STDMETHODCALLTYPE CreateDesktopW(
+		HWND hWndOrMon,
 		IVirtualDesktop **ppNewDesktop) = 0;
 
 	virtual HRESULT STDMETHODCALLTYPE RemoveDesktop(
@@ -224,6 +243,32 @@ public:
 	virtual HRESULT STDMETHODCALLTYPE FindDesktop(
 		GUID *desktopId,
 		IVirtualDesktop **ppDesktop) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE GetDesktopSwitchIncludeExcludeViews(
+		IVirtualDesktop desktop, 
+		IObjectArray unknown1, 
+		IObjectArray unknown2) = 0;
+	
+	virtual HRESULT STDMETHODCALLTYPE SetDesktopName(
+		IVirtualDesktop desktop, 
+		HSTRING name) = 0;
+	
+	virtual HRESULT STDMETHODCALLTYPE SetDesktopWallpaper(
+		IVirtualDesktop desktop, 
+		HSTRING path) = 0;
+	
+	virtual HRESULT STDMETHODCALLTYPE UpdateWallpaperPathForAllDesktops(
+		HSTRING path) = 0;
+	
+	virtual HRESULT STDMETHODCALLTYPE CopyDesktopState(
+		IApplicationView pView0, 
+		IApplicationView pView1) = 0;
+	
+	virtual HRESULT STDMETHODCALLTYPE GetDesktopIsPerMonitor(
+		int *pDesktopIsPerMonitor) = 0;
+	
+	virtual HRESULT STDMETHODCALLTYPE SetDesktopIsPerMonitor(
+		bool state) = 0;
 };
 
 // aa509086-5ca9-4c25-8f95-589d3c07b48a ?

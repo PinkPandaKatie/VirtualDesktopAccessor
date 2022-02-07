@@ -23,5 +23,9 @@
 #include <vector>
 #include <algorithm>
 
+#include <winstring.h>
+#pragma comment(lib, "windowsapp")
+
+
 
 // TODO: reference additional headers your program requires here

@@ -83,9 +83,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_OpenDllWindow(hInstance);
 
 	RegisterPostMessageHook(hwnd, MESSAGE_OFFSET);
-	std::wcout << "Desktops: " << GetDesktopCount() << "\r\n";
+	std::wcout << "Desktops: " << GetDesktopCount() << std::endl;
 	std::wcout << "Console Window's Desktop Number: " << GetWindowDesktopNumber(GetConsoleWindow()) << std::endl;
-	std::wcout << "Current Desktop Number: " << GetCurrentDesktopNumber() << "\r\n";
+	std::wcout << "Current Desktop Number: " << GetCurrentDesktopNumber() << std::endl;
+
+	std::wcout << "Current Desktop Name: " << GetDesktopName() << std::endl;
 
 	HWND arr[1024];
 	UINT numberOfWindows = ViewGetByLastActivationOrder((HWND*)&arr, 1024, 1, 0);

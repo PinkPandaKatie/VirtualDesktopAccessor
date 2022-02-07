@@ -98,6 +98,25 @@ IApplicationView* _GetApplicationViewForHwnd(HWND hwnd) {
 	return app;
 }
 
+PCWSTR DllExport GetDesktopName() 
+{
+	_RegisterService();
+	IVirtualDesktop *pDesktop = nullptr;
+	if (SUCCEEDED(pDesktopManagerInternal->GetCurrentDesktop(nullptr, &pDesktop)))
+	{
+		PCWSTR pString = NULL;
+		HSTRING hString = NULL;
+		if (SUCCEEDED(pDesktop->GetName(&hString)))
+		{
+			pString = WindowsGetStringRawBuffer(hString, nullptr);
+			WindowsDeleteString(hString);
+		}
+		pDesktop->Release();
+		return pString;
+	}
+	return nullptr;
+}
+
 void DllExport EnableKeepMinimized() {
 	//_keepMinimized = true;
 }
@@ -110,7 +129,7 @@ int DllExport GetDesktopCount()
 	_RegisterService();
 
 	IObjectArray *pObjectArray = nullptr;
-	HRESULT hr = pDesktopManagerInternal->GetDesktops(&pObjectArray);
+	HRESULT hr = pDesktopManagerInternal->GetDesktops(nullptr, &pObjectArray);
 
 	if (SUCCEEDED(hr))
 	{
@@ -127,7 +146,7 @@ int DllExport GetDesktopNumberById(GUID desktopId) {
 	_RegisterService();
 
 	IObjectArray *pObjectArray = nullptr;
-	HRESULT hr = pDesktopManagerInternal->GetDesktops(&pObjectArray);
+	HRESULT hr = pDesktopManagerInternal->GetDesktops(nullptr, &pObjectArray);
 	int found = -1;
 
 	if (SUCCEEDED(hr))
@@ -166,7 +185,7 @@ IVirtualDesktop* _GetDesktopByNumber(int number) {
 	_RegisterService();
 
 	IObjectArray *pObjectArray = nullptr;
-	HRESULT hr = pDesktopManagerInternal->GetDesktops(&pObjectArray);
+	HRESULT hr = pDesktopManagerInternal->GetDesktops(nullptr, &pObjectArray);
 	IVirtualDesktop* found = nullptr;
 
 	if (SUCCEEDED(hr))
@@ -293,7 +312,7 @@ IVirtualDesktop* GetCurrentDesktop() {
 		return nullptr;
 	}
 	IVirtualDesktop* found = nullptr;
-	pDesktopManagerInternal->GetCurrentDesktop(&found);
+	pDesktopManagerInternal->GetCurrentDesktop(nullptr, &found);
 	return found;
 }
 
@@ -317,7 +336,7 @@ void DllExport GoToDesktopNumber(int number) {
 	oldDesktop->Release();
 
 	IObjectArray *pObjectArray = nullptr;
-	HRESULT hr = pDesktopManagerInternal->GetDesktops(&pObjectArray);
+	HRESULT hr = pDesktopManagerInternal->GetDesktops(nullptr, &pObjectArray);
 	int found = -1;
 
 	if (SUCCEEDED(hr))
@@ -337,7 +356,7 @@ void DllExport GoToDesktopNumber(int number) {
 				GUID id = { 0 };
 				pDesktop->GetID(&id);
 				if (i == number) {
-					pDesktopManagerInternal->SwitchDesktop(pDesktop);
+					pDesktopManagerInternal->SwitchDesktop(nullptr, pDesktop);
 				}
 
 				pDesktop->Release();
