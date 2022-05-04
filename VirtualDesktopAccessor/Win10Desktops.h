@@ -162,6 +162,19 @@ DECLARE_INTERFACE_IID_(IApplicationViewCollection, IUnknown, "1841C6D7-4F9D-42C0
 	STDMETHOD(UnregisterForApplicationViewChanges)(THIS_ DWORD) PURE;
 };
 
+// In registry: Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{FF72FFDD-BE7E-43FC-9C03-AD81681E88E4}
+MIDL_INTERFACE("FF72FFDD-BE7E-43FC-9C03-AD81681E88E4")
+IVirtualDesktopOld : public IUnknown
+{
+public:
+	virtual HRESULT STDMETHODCALLTYPE IsViewVisible(
+		IApplicationView * pView,
+		int* pfVisible) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE GetID(
+		GUID* pGuid) = 0;
+};
+
 // In registry: Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{536D3495-B208-4CC9-AE26-DE8111275BF8}
 MIDL_INTERFACE("536d3495-b208-4cc9-ae26-de8111275bf8")
 IVirtualDesktop : public IUnknown
@@ -191,10 +204,53 @@ enum AdjacentDesktop
 	RightDirection = 4
 };
 
+// HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{F31574D6-B682-4CDC-BD56-1827860ABEC6}
+MIDL_INTERFACE("f31574d6-b682-4cdc-bd56-1827860abec6")
+IVirtualDesktopManagerInternalOld : public IUnknown
+{
+public:
+	virtual HRESULT STDMETHODCALLTYPE GetCount(
+		UINT * pCount) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE MoveViewToDesktop(
+		IApplicationView* pView,
+		IVirtualDesktop* pDesktop) = 0;
+
+	// Since build 10240
+	virtual HRESULT STDMETHODCALLTYPE CanViewMoveDesktops(
+		IApplicationView* pView,
+		int* pfCanViewMoveDesktops) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE GetCurrentDesktop(
+		IVirtualDesktop** desktop) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE GetDesktops(
+		IObjectArray** ppDesktops) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE GetAdjacentDesktop(
+		IVirtualDesktop* pDesktopReference,
+		AdjacentDesktop uDirection,
+		IVirtualDesktop** ppAdjacentDesktop) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE SwitchDesktop(
+		IVirtualDesktop* pDesktop) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE CreateDesktopW(
+		IVirtualDesktop** ppNewDesktop) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE RemoveDesktop(
+		IVirtualDesktop* pRemove,
+		IVirtualDesktop* pFallbackDesktop) = 0;
+
+	// Since build 10240
+	virtual HRESULT STDMETHODCALLTYPE FindDesktop(
+		GUID* desktopId,
+		IVirtualDesktop** ppDesktop) = 0;
+};
 
 // HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{B2F925B9-5A0F-4D2E-9F4D-2B1507593C10}
 MIDL_INTERFACE("b2f925b9-5a0f-4d2e-9f4d-2b1507593c10")
-IVirtualDesktopManagerInternal : public IUnknown
+IVirtualDesktopManagerInternalNew : public IUnknown
 {
 public:
 	virtual HRESULT STDMETHODCALLTYPE GetCount(

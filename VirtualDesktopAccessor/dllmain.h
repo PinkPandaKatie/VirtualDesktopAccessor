@@ -17,7 +17,8 @@
 
 std::map<HWND, int> listeners;
 IServiceProvider* pServiceProvider = nullptr;
-IVirtualDesktopManagerInternal *pDesktopManagerInternal = nullptr;
+IVirtualDesktopManagerInternalNew *pDesktopManagerInternalNew = nullptr;
+IVirtualDesktopManagerInternalOld* pDesktopManagerInternalOld = nullptr;
 IVirtualDesktopManager *pDesktopManager = nullptr;
 IApplicationViewCollection *viewCollection = nullptr;
 IVirtualDesktopPinnedApps *pinnedApps = nullptr;
@@ -40,7 +41,8 @@ void _PostMessageToListeners(int msgOffset, WPARAM wParam, LPARAM lParam) {
 void _RegisterService(BOOL force = FALSE) {
 	if (force) {
 		pServiceProvider = nullptr;
-		pDesktopManagerInternal = nullptr;
+		pDesktopManagerInternalNew = nullptr;
+		pDesktopManagerInternalOld = nullptr;
 		pDesktopManager = nullptr;
 		viewCollection = nullptr;
 		pinnedApps = nullptr;
@@ -70,23 +72,29 @@ void _RegisterService(BOOL force = FALSE) {
 
 	pServiceProvider->QueryService(
 		CLSID_VirtualDesktopManagerInternal,
-		__uuidof(IVirtualDesktopManagerInternal), (PVOID*)&pDesktopManagerInternal);
-
-	if (viewCollection == nullptr) {
-		std::wcout << L"FATAL ERROR: viewCollection is null";
-		return;
-	}
-
-	if (pDesktopManagerInternal == nullptr) {
-		std::wcout << L"FATAL ERROR: pDesktopManagerInternal is null";
-		return;
-	}
+		__uuidof(IVirtualDesktopManagerInternalNew), (PVOID*)&pDesktopManagerInternalNew);
 
 	// Notification service
 	HRESULT hrNotificationService = pServiceProvider->QueryService(
 		CLSID_IVirtualNotificationService,
 		__uuidof(IVirtualDesktopNotificationService),
 		(PVOID*)&pDesktopNotificationService);
+
+	if (viewCollection == nullptr) {
+		std::wcout << L"FATAL ERROR: viewCollection is null";
+		return;
+	}
+
+	if (pDesktopManagerInternalNew == nullptr) {
+		pServiceProvider->QueryService(
+			CLSID_VirtualDesktopManagerInternal,
+			__uuidof(IVirtualDesktopManagerInternalOld), (PVOID*)&pDesktopManagerInternalOld);
+
+		if (pDesktopManagerInternalOld == nullptr) {
+			std::wcout << L"FATAL ERROR: pDesktopManagerInternal is null";
+			return;
+		}
+	}
 }
 
 
@@ -98,23 +106,62 @@ IApplicationView* _GetApplicationViewForHwnd(HWND hwnd) {
 	return app;
 }
 
-PCWSTR DllExport GetDesktopName() 
-{
+IVirtualDesktop* GetCurrentDesktop() {
 	_RegisterService();
-	IVirtualDesktop *pDesktop = nullptr;
-	if (SUCCEEDED(pDesktopManagerInternal->GetCurrentDesktop(nullptr, &pDesktop)))
+
+	HRESULT hr;
+	IVirtualDesktop* pDesktop = nullptr;
+
+	if (pDesktopManagerInternalNew != nullptr) {
+		hr = pDesktopManagerInternalNew->GetCurrentDesktop(nullptr, &pDesktop);
+	}
+	else if (pDesktopManagerInternalOld != nullptr) {
+		hr = pDesktopManagerInternalOld->GetCurrentDesktop(&pDesktop);
+	}
+	else {
+		return nullptr;
+	}
+	return SUCCEEDED(hr) ? pDesktop : nullptr;
+}
+
+HRESULT _GetDesktops(IObjectArray** ppObjectArray) {
+	return pDesktopManagerInternalNew ? pDesktopManagerInternalNew->GetDesktops(nullptr, ppObjectArray) : pDesktopManagerInternalOld->GetDesktops(ppObjectArray);
+}
+
+HRESULT _MoveViewToDesktop(IApplicationView* pView, IVirtualDesktop* pDesktop) {
+	return pDesktopManagerInternalNew ? pDesktopManagerInternalNew->MoveViewToDesktop(pView, pDesktop) : pDesktopManagerInternalOld->MoveViewToDesktop(pView, pDesktop);
+}
+
+HRESULT _SwitchDesktop(IVirtualDesktop* pDesktop) {
+	return pDesktopManagerInternalNew ? pDesktopManagerInternalNew->SwitchDesktop(nullptr, pDesktop) : pDesktopManagerInternalOld->SwitchDesktop(pDesktop);
+}
+
+PCWSTR DllExport GetDesktopName()
+{
+	// Assume GetName does not exist if the new interface is null.
+	if (pDesktopManagerInternalNew == nullptr) {
+		return L"<unknown>";
+	}
+	IVirtualDesktop *pDesktop = GetCurrentDesktop();
+	if (pDesktop != nullptr)
 	{
 		PCWSTR pString = NULL;
-		HSTRING hString = NULL;
+		static HSTRING hString = NULL;
+		// KS - This is absolutely not thread safe, but assume AHK will copy the string as soon as this function returns and is single threaded anyway.
+		if (hString != NULL) {
+			WindowsDeleteString(hString);
+		}
 		if (SUCCEEDED(pDesktop->GetName(&hString)))
 		{
 			pString = WindowsGetStringRawBuffer(hString, nullptr);
-			WindowsDeleteString(hString);
+		}
+		else {
+			hString = NULL;
 		}
 		pDesktop->Release();
 		return pString;
 	}
-	return nullptr;
+	return L"<unknown>";
 }
 
 void DllExport EnableKeepMinimized() {
@@ -129,7 +176,7 @@ int DllExport GetDesktopCount()
 	_RegisterService();
 
 	IObjectArray *pObjectArray = nullptr;
-	HRESULT hr = pDesktopManagerInternal->GetDesktops(nullptr, &pObjectArray);
+	HRESULT hr = _GetDesktops(&pObjectArray);
 
 	if (SUCCEEDED(hr))
 	{
@@ -146,7 +193,7 @@ int DllExport GetDesktopNumberById(GUID desktopId) {
 	_RegisterService();
 
 	IObjectArray *pObjectArray = nullptr;
-	HRESULT hr = pDesktopManagerInternal->GetDesktops(nullptr, &pObjectArray);
+	HRESULT hr = _GetDesktops(&pObjectArray);
 	int found = -1;
 
 	if (SUCCEEDED(hr))
@@ -160,7 +207,7 @@ int DllExport GetDesktopNumberById(GUID desktopId) {
 			{
 				IVirtualDesktop *pDesktop = nullptr;
 
-				if (FAILED(pObjectArray->GetAt(i, __uuidof(IVirtualDesktop), (void**)&pDesktop)))
+				if (FAILED(pObjectArray->GetAt(i, __uuidof(IVirtualDesktop), (void**)&pDesktop)) && FAILED(pObjectArray->GetAt(i, __uuidof(IVirtualDesktopOld), (void**)&pDesktop)))
 					continue;
 
 				GUID id = { 0 };
@@ -181,18 +228,25 @@ int DllExport GetDesktopNumberById(GUID desktopId) {
 	return found;
 }
 
-IVirtualDesktop* _GetDesktopByNumber(int number) {
+IVirtualDesktop* _GetDesktopByNumber(int num) {
 	_RegisterService();
 
-	IObjectArray *pObjectArray = nullptr;
-	HRESULT hr = pDesktopManagerInternal->GetDesktops(nullptr, &pObjectArray);
+	IObjectArray* pObjectArray = nullptr;
+	HRESULT hr = _GetDesktops(&pObjectArray);
 	IVirtualDesktop* found = nullptr;
 
 	if (SUCCEEDED(hr))
 	{
 		UINT count;
 		hr = pObjectArray->GetCount(&count);
-		pObjectArray->GetAt(number, __uuidof(IVirtualDesktop), (void**)&found);
+
+		if (SUCCEEDED(hr) && num >= 0 && (UINT)num < count)
+		{
+			if (FAILED(pObjectArray->GetAt(num, __uuidof(IVirtualDesktop), (void**)&found)) && FAILED(pObjectArray->GetAt(num, __uuidof(IVirtualDesktopOld), (void**)&found))) {
+				found = nullptr;
+			}
+		}
+
 		pObjectArray->Release();
 	}
 
@@ -231,7 +285,7 @@ int DllExport IsWindowOnCurrentVirtualDesktop(HWND window) {
 }
 
 GUID DllExport GetDesktopIdByNumber(int number) {
-	GUID id;
+	GUID id{};
 	IVirtualDesktop* pDesktop = _GetDesktopByNumber(number);
 	if (pDesktop != nullptr) {
 		pDesktop->GetID(&id);
@@ -282,7 +336,7 @@ BOOL DllExport MoveWindowToDesktopNumber(HWND window, int number) {
 			IApplicationView* app = nullptr;
 			viewCollection->GetViewForHwnd(window, &app);
 			if (app != nullptr) {
-				pDesktopManagerInternal->MoveViewToDesktop(app, pDesktop);
+				_MoveViewToDesktop(app, pDesktop);
 				return true;
 			}
 		}
@@ -305,16 +359,6 @@ int DllExport GetDesktopNumber(IVirtualDesktop *pDesktop) {
 
 	return -1;
 }
-IVirtualDesktop* GetCurrentDesktop() {
-	_RegisterService();
-
-	if (pDesktopManagerInternal == nullptr) {
-		return nullptr;
-	}
-	IVirtualDesktop* found = nullptr;
-	pDesktopManagerInternal->GetCurrentDesktop(nullptr, &found);
-	return found;
-}
 
 int DllExport GetCurrentDesktopNumber() {
 	IVirtualDesktop* virtualDesktop = GetCurrentDesktop();
@@ -326,43 +370,13 @@ int DllExport GetCurrentDesktopNumber() {
 void DllExport GoToDesktopNumber(int number) {
 	_RegisterService();
 
-	if (pDesktopManagerInternal == nullptr) {
+	if (pDesktopManagerInternalNew == nullptr && pDesktopManagerInternalOld == nullptr) {
 		return;
 	}
 
-	IVirtualDesktop* oldDesktop = GetCurrentDesktop();
-	GUID oldId = { 0 };
-	oldDesktop->GetID(&oldId);
-	oldDesktop->Release();
-
-	IObjectArray *pObjectArray = nullptr;
-	HRESULT hr = pDesktopManagerInternal->GetDesktops(nullptr, &pObjectArray);
-	int found = -1;
-
-	if (SUCCEEDED(hr))
-	{
-		UINT count;
-		hr = pObjectArray->GetCount(&count);
-
-		if (SUCCEEDED(hr))
-		{
-			for (UINT i = 0; i < count; i++)
-			{
-				IVirtualDesktop *pDesktop = nullptr;
-
-				if (FAILED(pObjectArray->GetAt(i, __uuidof(IVirtualDesktop), (void**)&pDesktop)))
-					continue;
-
-				GUID id = { 0 };
-				pDesktop->GetID(&id);
-				if (i == number) {
-					pDesktopManagerInternal->SwitchDesktop(nullptr, pDesktop);
-				}
-
-				pDesktop->Release();
-			}
-		}
-		pObjectArray->Release();
+	IVirtualDesktop* pDesktop = _GetDesktopByNumber(number);
+	if (pDesktop != nullptr) {
+		_SwitchDesktop(pDesktop);
 	}
 }
 
